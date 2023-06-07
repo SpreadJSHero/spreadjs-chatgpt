@@ -74,8 +74,7 @@ let formulaGenerate = {
     "bigButton":"=ribbonHeight>toolbarHeight",
     "commandName":"formulaGenerate",
     execute: function(designer){
-        let spread = designer.getWorkbook();
-        showFormulaGenerateDialog({}, spread)
+        showFormulaGenerateDialog({}, designer)
     }
 }
 let pivotTableSuggest = {
@@ -108,8 +107,7 @@ let dataAnalyze = {
     "bigButton":"=ribbonHeight>toolbarHeight",
     "commandName":"dataAnalyze",
     execute: function(designer){
-        let spread = designer.getWorkbook();
-        showDataAnalyzeDialog({}, spread)
+        showDataAnalyzeDialog({}, designer)
     }
 }
 config.commandMap = {

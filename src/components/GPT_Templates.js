@@ -7,7 +7,7 @@ import {openai} from './openai'
 
 import { ElLoading } from "element-plus";
 
-let globalSpread;
+let globalDesigner;
 
 let formulaGenerateTemplate = {
     "templateName": "formulaGenerateTemplate",
@@ -24,13 +24,17 @@ let formulaGenerateTemplate = {
     "buttons": [
         { "text": "生成", "buttonType": "Ok", "closeAfterClick": true },
         { "text": "插入", "visibleWhen": "canInsert=true", "bindingPath": "canInsert", "closeAfterClick": true, "click": function(data){
-            if(!globalSpread){
-                GC.Spread.Sheets.Designer.showMessageBox("没有注册Spread对象", "错误", GC.Spread.Sheets.Designer.MessageBoxIcon.error)
+            if(!globalDesigner){
+                GC.Spread.Sheets.Designer.showMessageBox("没有注册Designer对象", "错误", GC.Spread.Sheets.Designer.MessageBoxIcon.error)
             }
-            let sheet = globalSpread.getActiveSheet();
-            globalSpread.commandManager().execute({cmd: "editCell", row: sheet.getActiveRowIndex(),col: sheet.getActiveColumnIndex(), newValue: data.formula, sheetName: sheet.name() })
+            let spread = globalDesigner.getWorkbook(), sheet = spread.getActiveSheet();
+            spread.commandManager().execute({cmd: "editCell", row: sheet.getActiveRowIndex(),col: sheet.getActiveColumnIndex(), newValue: data.formula, sheetName: sheet.name() });
+            let formulaTextBox = globalDesigner.getData("formulaBar");
+            if(formulaTextBox){
+                formulaTextBox.refresh(true);
+            }
             // 用完销毁防止内存泄露
-            globalSpread = undefined;
+            globalDesigner = undefined;
         }},
         { "text": "取消", "buttonType": "Cancel" }]
 }
@@ -49,7 +53,7 @@ var dataAnalyzeTemplate = {
                 { "type": "TextBlock", "bindingPath": "result", "multiLine": true, "resize": false, "style": "width: 300px; table-layout:fixed; word-break:break-all;", "enableWhen": "never=true"}]
         }],
     "buttons": [
-        { "text": "生成", "buttonType": "Ok", "closeAfterClick": true },
+        { "text": "分析", "buttonType": "Ok", "closeAfterClick": true },
         { "text": "关闭", "buttonType": "Cancel" }]
 }
 GC.Spread.Sheets.Designer.registerTemplate("dataAnalyzeTemplate", dataAnalyzeTemplate);
@@ -63,8 +67,11 @@ function checkDialogDescription(value) {
     }
 }
 
-function showFormulaGenerateDialog(data, spread){
-    globalSpread = spread;
+function showFormulaGenerateDialog(data, designer){
+    if(!designer){
+        GC.Spread.Sheets.Designer.showMessageBox("没有注册Designer对象", "错误", GC.Spread.Sheets.Designer.MessageBoxIcon.error)
+    }
+    globalDesigner = designer;
     GC.Spread.Sheets.Designer.showDialog("formulaGenerateTemplate", data, function(bindingData){
         let description = bindingData.description;
         if(description){
@@ -82,7 +89,7 @@ function showFormulaGenerateDialog(data, spread){
                 if(formula.indexOf("=") === 0){
                     bindingData.canInsert = true;
                 }
-                showFormulaGenerateDialog(bindingData, spread);
+                showFormulaGenerateDialog(bindingData, designer);
             }).catch(function(error){
                 loading.close();
             });
@@ -91,10 +98,14 @@ function showFormulaGenerateDialog(data, spread){
 }
 
 
-function showDataAnalyzeDialog(data, spread){
+function showDataAnalyzeDialog(data, designer){
+    if(!designer){
+        GC.Spread.Sheets.Designer.showMessageBox("没有注册Designer对象", "错误", GC.Spread.Sheets.Designer.MessageBoxIcon.error)
+    }
     GC.Spread.Sheets.Designer.showDialog("dataAnalyzeTemplate", data, function(bindingData){
         let description = bindingData.description;
         if(description){
+            let spread = designer.getWorkbook();
             let sheet = spread.getActiveSheet(), selection = sheet.getSelections()[0];
             let data = sheet.getCsv(selection.row, selection.col, selection.rowCount, selection.colCount, "\n", ",");
             let loading = ElLoading.service({ lock: true, text: "Loading", background: "rgba(0, 0, 0, 0.7)"});
@@ -108,7 +119,7 @@ function showDataAnalyzeDialog(data, spread){
                 loading.close();
                 let result = completion.data.choices[0].text.trim();
                 bindingData.result = result;
-                showDataAnalyzeDialog(bindingData, spread);
+                showDataAnalyzeDialog(bindingData, designer);
             }).catch(function(error){
                 loading.close();
             });
