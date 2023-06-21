@@ -4,7 +4,7 @@ import "@grapecity/spread-sheets-designer-resources-cn"
 import "@grapecity/spread-sheets-designer"
 import {openai} from './openai'
 
-import {showFormulaGenerateDialog, showDataAnalyzeDialog} from './GPT_Templates'
+import {showFormulaGenerateDialog, showDataAnalyzeDialog, showPivotTableCreateDialog} from './GPT_Templates'
 
 import { ElLoading } from "element-plus";
 
@@ -84,20 +84,7 @@ let pivotTableSuggest = {
     "bigButton":"=ribbonHeight>toolbarHeight",
     "commandName":"pivotTableSuggest",
     execute: function(designer){
-        let spread = designer.getWorkbook(),sheet = spread.getActiveSheet(), selection = sheet.getSelections()[0];
-        let data = sheet.getArray(selection.row, selection.col, selection.rowCount, selection.colCount);
-        let loading = ElLoading.service({ lock: true, text: "Loading", background: "rgba(0, 0, 0, 0.7)"});
-        const response = openai.createCompletion({
-            model: "text-davinci-003",
-            prompt: "最后的JSON数据第一行是数据字段，希望对这些字段做数据透视表分析，建议的行、列、值各设置什么字段？这样设置可以分析出什么？\n" + JSON.stringify(data),
-            max_tokens: 500,
-            temperature: 0.5
-        });
-        response.then(function(completion){
-            loading.close();
-            let desc = completion.data.choices[0].text.trim();
-            GC.Spread.Sheets.Designer.showMessageBox(desc, "分析建议", GC.Spread.Sheets.Designer.MessageBoxIcon.info)
-        });
+        showPivotTableCreateDialog({}, designer)
     }
 }
 let dataAnalyze = {
@@ -110,6 +97,7 @@ let dataAnalyze = {
         showDataAnalyzeDialog({}, designer)
     }
 }
+
 config.commandMap = {
     formulaAnalyze,
     formulaGenerate,
