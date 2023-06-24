@@ -59,7 +59,16 @@ GPT_Filter.prototype.evaluateAsync = function (context, range, desc) {
 
     const response = openai.createCompletion({
         model: "text-davinci-003",
-        prompt: "对最后的JSON数据，过滤" + desc + "，返回和原来结构一样的双层JSON数组。\n" + JSON.stringify(tempArray),
+        prompt: `对给出的JSON数据按照要求做处理，处理后直接返回JSON数组，数组符合以下JSON schema { "type": "array", "items": { "type": "array", "items": { "type": "object" } } } 。
+        JSON数据："""
+        ${JSON.stringify(tempArray)}
+        """
+        处理要求：
+        """
+        ${desc}
+        `,
+        
+        //"对JSON数据" + JSON.stringify(tempArray) + "处理,处理条件：" + desc + '。直接返回数组，数组符合以下JSON schema { "type": "array", "items": { "type": "array", "items": { "type": [ "string", "integer" ] } } } ' ,
         max_tokens: 500,
         temperature: 0.5
     });

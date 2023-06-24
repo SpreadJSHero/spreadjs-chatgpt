@@ -78,7 +78,7 @@ function showFormulaGenerateDialog(data, designer){
             let loading = ElLoading.service({ lock: true, text: "Loading", background: "rgba(0, 0, 0, 0.7)"});
             const response = openai.createCompletion({
                 model: "text-davinci-003",
-                prompt: "帮我写一个Excel公式， " + description,
+                prompt: '帮我写一个Excel公式， 要求是："""\n'+ description,
                 max_tokens: 100,
                 temperature: 0.5
             });
@@ -111,7 +111,7 @@ function showDataAnalyzeDialog(data, designer){
             let loading = ElLoading.service({ lock: true, text: "Loading", background: "rgba(0, 0, 0, 0.7)"});
             const response = openai.createCompletion({
                 model: "text-davinci-003",
-                prompt: "表格数据如下:\n" + data + "\n\n分析" + description,
+                prompt: '按要求分析数据并给出简要总结。\n表格数据:\n"""' + data + '\n"""\n分析要求：\n"""' + description,
                 max_tokens: 100,
                 temperature: 0.5
             });
@@ -168,7 +168,6 @@ function showPivotTableCreateDialog(data, designer){
     }
     data.dataRange = pivotRange;
     GC.Spread.Sheets.Designer.showDialog("createPivotTableTemplate", data, async function(bindingData){
-        debugger
         if(!bindingData){
             return;
         }
@@ -237,7 +236,6 @@ function showPivotTableCreateDialog(data, designer){
 }
 
 function getUniquePivotName(sheet) {
-    debugger
     var count = 1;
     if (!sheet.pivotTables) {
         return;
