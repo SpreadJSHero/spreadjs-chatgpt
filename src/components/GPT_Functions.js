@@ -52,30 +52,55 @@ GPT_Filter.prototype.evaluateAsync = function (context, range, desc) {
         return GC.Spread.CalcEngine.Errors.NotAvailable;
     }
     
-    let tempArray = range.toArray && range.toArray();
+    let tempArray = range.toArray && range.toArray(undefined, false);
     if (!Array.isArray(tempArray)) {
         return GC.Spread.CalcEngine.Errors.NotAvailable;
     }
+    desc = desc.replaceAll("```", "").replaceAll('"""').replaceAll("\n", "");
+    let delimiter = "####";
+    let messages = [
+        {"role": "system", "content": `你将根据用户的要求对数据做处理。`
+                                    + `用户的处理要求将用${delimiter}分隔.`
+                                    + `如果处理要求和数据无关，直接返回"NA".`
+                                    + `先按用户的要求处理数据，然后将处理的数据通过JSON的数组返回，并且JSON 符合JSON schema { "type": "array", "items": { "type": "array", "items": { "type": [ "string", "number" ] } } } `
+                                    + `数据是：${JSON.stringify(tempArray)}`},
+        { "role": "user", "content": `${delimiter}${desc}${delimiter}`
+    }];
 
-    const response = openai.createCompletion({
-        model: "text-davinci-003",
-        prompt: `对给出的JSON数据按照要求做处理，处理后直接返回JSON数组，数组符合以下JSON schema { "type": "array", "items": { "type": "array", "items": { "type": "object" } } } 。
-        JSON数据："""
-        ${JSON.stringify(tempArray)}
-        """
-        处理要求：
-        """
-        ${desc}
-        `,
-        
-        //"对JSON数据" + JSON.stringify(tempArray) + "处理,处理条件：" + desc + '。直接返回数组，数组符合以下JSON schema { "type": "array", "items": { "type": "array", "items": { "type": [ "string", "integer" ] } } } ' ,
-        max_tokens: 500,
-        temperature: 0.5
+    let response = openai.createChatCompletion({
+        "model": "gpt-3.5-turbo-0613",
+        "messages": messages,
     });
     response.then(function(completion){
-        let array = JSON.parse(completion.data.choices[0].text.trim())
+        let text = completion.data.choices[0].message.content.trim();
+        // text = text[0] === "[" ? text : text.substring(text.indexOf("["));
+        let array = JSON.parse(text)
         context.setAsyncResult(new GC.Spread.CalcEngine.CalcArray(array));
     })
+    /* 
+    const response = openai.createCompletion({
+        model: "text-davinci-003",
+        prompt: '按照如下步骤处理数据：\n' 
+        + '1. 按照处理要求对JSON数据进行处理，\n' 
+        + '2. 格式化你的回复为JSON数组，数组符合JSON schema { "type": "array", "items": { "type": "array", "items": { "type": ["string", "number"] } } } 。\n'
+        + '3. 直接返回JSON文本，不要添加提示内容\n'
+        + 'JSON数据：'+ JSON.stringify(tempArray)
+        + '\n处理要求：\n'
+        + ' """\n'
+        + desc
+        + '\n"""', 
+        max_tokens: 500,
+        temperature: 0.3
+    });
+    response.then(function(completion){
+        let text = completion.data.choices[0].text.trim();
+        // text = text[0] === "[" ? text : text.substring(text.indexOf("["));
+        let array = JSON.parse(text)
+        context.setAsyncResult(new GC.Spread.CalcEngine.CalcArray(array));
+    })
+    */
+
+
 };
 
 

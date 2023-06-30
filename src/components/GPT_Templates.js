@@ -75,11 +75,13 @@ function showFormulaGenerateDialog(data, designer){
     GC.Spread.Sheets.Designer.showDialog("formulaGenerateTemplate", data, function(bindingData){
         let description = bindingData.description;
         if(description){
+
+            description = description.replaceAll("```", "").replaceAll('"""').replaceAll("\n", "");
             let loading = ElLoading.service({ lock: true, text: "Loading", background: "rgba(0, 0, 0, 0.7)"});
             const response = openai.createCompletion({
                 model: "text-davinci-003",
-                prompt: '帮我写一个Excel公式， 要求是："""\n'+ description,
-                max_tokens: 100,
+                prompt: '按要求帮我写一个Excel公式，如果要求和生成公式无关，返回“描述不合理”。\n要求：\n```\n'+ description + '\n```',
+                max_tokens: 200,
                 temperature: 0.5
             });
             response.then(function(completion){
@@ -111,8 +113,8 @@ function showDataAnalyzeDialog(data, designer){
             let loading = ElLoading.service({ lock: true, text: "Loading", background: "rgba(0, 0, 0, 0.7)"});
             const response = openai.createCompletion({
                 model: "text-davinci-003",
-                prompt: '按要求分析数据并给出简要总结。\n表格数据:\n"""' + data + '\n"""\n分析要求：\n"""' + description,
-                max_tokens: 100,
+                prompt: '按要求分析数据并给出简要总结，如果分析要求和数据无关，返回“无法分析，请输入和数据相关的要求！”。\n表格数据:\n```' + data + '\n```\n分析要求：\n```' + description + '\n```',
+                max_tokens: 500,
                 temperature: 0.5
             });
             response.then(function(completion){
@@ -173,9 +175,20 @@ function showPivotTableCreateDialog(data, designer){
         }
         let loading = ElLoading.service({ lock: true, text: "Loading", background: "rgba(0, 0, 0, 0.7)"});
      
-        let messages = [
-            {"role": "user", "content": "表格包含" + headerList + "这些列，创建数据透视表，返回行，列，值字段，用来分析" + bindingData.description}
-        ];
+        let messages = [{"role": "system","content": "你是一个数据透视表分析助手。"},
+            {
+                "role": "user", 
+                "content": 
+`根据表格标题内容和需求描述推荐创建数据透视表需要的行、列和值字段。
+表格标题为：
+---
+${headerList}
+---
+需求描述：
+---
+${bindingData.description}
+---`
+            }];
         let functions = [{
             "name": "pivot_talbe_analyze",
             "description": "对数据创建数据透视表，返回数据透视表结果",
@@ -205,7 +218,6 @@ function showPivotTableCreateDialog(data, designer){
                 "functions": functions,
                 "function_call": {"name": "pivot_talbe_analyze"}
             });
-            console.log(completion.data.choices[0].message.function_call); 
             if(completion.data.choices[0].message.function_call){
                 let args = JSON.parse(completion.data.choices[0].message.function_call.arguments);
                 spread.suspendPaint();
