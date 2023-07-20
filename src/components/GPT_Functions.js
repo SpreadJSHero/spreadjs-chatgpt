@@ -41,11 +41,11 @@ GPT_Filter.prototype = new GC.Spread.CalcEngine.Functions.AsyncFunction('GPT.FIL
                 name: "过滤条件描述"
             }]});
 GPT_Filter.prototype.defaultValue = function () { return 'Loading...'; };
-GPT_Filter.prototype.acceptsArray = function () {
-    return true;
+GPT_Filter.prototype.acceptsArray = function (argIndex) {
+    return argIndex === 0;
 }
-GPT_Filter.prototype.acceptsReference = function () {
-    return true;
+GPT_Filter.prototype.acceptsReference = function (argIndex) {
+    return argIndex === 0;
 }
 GPT_Filter.prototype.evaluateAsync = function (context, range, desc) {
     if (!range || !desc) {
@@ -105,3 +105,62 @@ GPT_Filter.prototype.evaluateAsync = function (context, range, desc) {
 
 
 GC.Spread.CalcEngine.Functions.defineGlobalCustomFunction("GPT.FILTER", new GPT_Filter());
+
+
+
+
+var GPT_Translate = function () {};
+GPT_Translate.prototype = new GC.Spread.CalcEngine.Functions.AsyncFunction('GPT.Translate', 2, 2,  {
+        description: "对选择的内容按要求的语言翻译",
+        parameters: [
+            {
+                name: "数据区域"
+            },
+            {
+                name: "翻译语言"
+            }]});
+GPT_Translate.prototype.defaultValue = function () { return 'Loading...'; };
+GPT_Translate.prototype.acceptsArray = function (argIndex) {
+    return argIndex === 0;
+}
+GPT_Translate.prototype.acceptsReference = function (argIndex) {
+    return argIndex === 0;
+}
+GPT_Translate.prototype.evaluateAsync = function (context, range, desc) {
+    if (!range || !desc || !desc.trim()) {
+        return GC.Spread.CalcEngine.Errors.NotAvailable;
+    }
+    
+    let tempArray = range.toArray && range.toArray(undefined, false);
+    if (!Array.isArray(tempArray)) {
+        return GC.Spread.CalcEngine.Errors.NotAvailable;
+    }
+    desc = desc.replaceAll("```", "").replaceAll('"""').replaceAll("\n", "");
+    let delimiter = "####";
+    let messages = [
+        {"role": "system", "content": `对提供的数据进行翻译。`
+                                    + `翻译语言将用${delimiter}分隔.`
+                                    + `如果要翻译的语言不支持，直接返回"不支持改语言".`
+                                    + `翻译后的数据通过JSON的数组返回，并且JSON 符合JSON schema { "type": "array", "items": { "type": "array", "items": { "type": [ "string", "number" ] } } } `
+                                    + `数据是：${JSON.stringify(tempArray)}`},
+        { "role": "user", "content": `${delimiter}${desc}${delimiter}`
+    }];
+
+    let response = openai.createChatCompletion({
+        "model": "gpt-3.5-turbo-0613",
+        "messages": messages,
+    });
+    response.then(function(completion){
+        let text = completion.data.choices[0].message.content.trim();
+        // text = text[0] === "[" ? text : text.substring(text.indexOf("["));
+        if(text[0] === "[" && text[text.length - 1] === "]"){
+            let array = JSON.parse(text)
+            context.setAsyncResult(new GC.Spread.CalcEngine.CalcArray(array));
+        }
+        else{
+            context.setAsyncResult(text);
+        }
+    })
+};
+
+GC.Spread.CalcEngine.Functions.defineGlobalCustomFunction("GPT.Translate", new GPT_Translate());
